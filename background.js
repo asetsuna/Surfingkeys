@@ -49,7 +49,6 @@ var Service = (function() {
 
     function extendSettings(ss) {
         for (var k in ss) {
-            console.log(k,ss[k]);
             settings[k] = ss[k];
         }
     }
