@@ -11,8 +11,8 @@ Both are great extensions. What makes me create another wheel, is that I found s
 
 Surfingkeys is created with all settings described in Javascript, so it's easy for anyone to map any keystrokes to his own defined Javascript function. For example,
 
-    mapkey('c-y', 'Show me the money', function() {
-        alert('a well-known phrase uttered by characters in the 1996 film Jerry Maguire');
+    mapkey('<Ctrl-y>', 'Show me the money', function() {
+        Normal.showPopup('a well-known phrase uttered by characters in the 1996 film Jerry Maguire (Escape to close).');
     });
 
 [Reference for editing your own settings](#edit-your-own-settings).
@@ -261,13 +261,14 @@ mapkey in visual mode
 
 ### map a keystroke to another
 
-    map(new_keystroke, old_keystroke, [domain_pattern])
+    map(new_keystroke, old_keystroke, [domain_pattern], [new_annotation])
 
 | parameter  | explanation |
 |:---------------| :-----|
 |**new_keystroke**               | string, the new keystroke that will be used.|
 |**old_keystroke**               | string, the existing keystroke that will be replaced, which means pressing it will not trigger any action.|
 |**domain_pattern**              | regex[optional], a Javascript regex pattern to identify the domains that this mapping works.|
+|**new_annotation**              | string[optional], use it instead of the annotation from old_keystroke if provided.|
 
 ### remove a keystroke mapping
 

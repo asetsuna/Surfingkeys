@@ -1,7 +1,7 @@
 var Events = (function() {
     var self = {
         keydownHandlers: [Hints, Visual, Normal],
-        hotKey: 'a-s',
+        hotKey: '<Alt-s>',
         focusHandlers: {}
     };
 
@@ -72,7 +72,7 @@ var Events = (function() {
                 self.toggleBlacklist(window.location.origin);
                 return;
             }
-            if (isExcluded(event.target)) {
+            if (isExcluded(event.target) || key === "") {
                 return;
             }
             delete self.focusHandlers.getBackFocusOnLoad;

@@ -101,11 +101,18 @@ String.prototype.convertLink = function() {
             downArrow: 40,
             upArrow: 38
         },
+        modifierKeys: {
+            16: "Shift",
+            17: "Ctrl",
+            18: "Alt"
+        },
         keyNames: {
-            37: "left",
-            38: "up",
-            39: "right",
-            40: "down"
+            8:   'Backspace',
+            9:   'Tab',
+            12:  'NumLock',
+            27:  'Esc',
+            32:  'Space',
+            46:  'Delete',
         },
         keyIdentifierCorrectionMap: {
             "U+00C0": ["U+0060", "U+007E"],
@@ -141,31 +148,35 @@ String.prototype.convertLink = function() {
         },
         getKeyChar: function(event) {
             var character, correctedIdentifiers, keyIdentifier, unicodeKeyInHex;
-            if (event.keyIdentifier.slice(0, 2) !== "U+") {
-                if (this.keyNames[event.keyCode]) {
-                    return this.keyNames[event.keyCode];
+            if (event.keyCode in this.modifierKeys) {
+                character = "";
+            } else {
+                if (event.keyIdentifier.slice(0, 2) !== "U+") {
+                    character = "{0}".format(event.keyIdentifier);
+                } else if (this.keyNames.hasOwnProperty(event.keyCode)) {
+                    character = "{0}".format(this.keyNames[event.keyCode]);
+                } else {
+                    keyIdentifier = event.keyIdentifier;
+                    if ((this.platform === "Windows" || this.platform === "Linux") && this.keyIdentifierCorrectionMap[keyIdentifier]) {
+                        correctedIdentifiers = this.keyIdentifierCorrectionMap[keyIdentifier];
+                        keyIdentifier = event.shiftKey ? correctedIdentifiers[1] : correctedIdentifiers[0];
+                    }
+                    unicodeKeyInHex = "0x" + keyIdentifier.substring(2);
+                    character = String.fromCharCode(parseInt(unicodeKeyInHex));
+                    character = event.shiftKey ? character : character.toLowerCase();
                 }
-                if (event.keyCode >= this.keyCodes.f1 && event.keyCode <= this.keyCodes.f12) {
-                    return "f" + (1 + event.keyCode - keyCodes.f1);
+                if (event.metaKey) {
+                    character = "Meta-" + character;
                 }
-                return "";
-            }
-            keyIdentifier = event.keyIdentifier;
-            if ((this.platform === "Windows" || this.platform === "Linux") && this.keyIdentifierCorrectionMap[keyIdentifier]) {
-                correctedIdentifiers = this.keyIdentifierCorrectionMap[keyIdentifier];
-                keyIdentifier = event.shiftKey ? correctedIdentifiers[1] : correctedIdentifiers[0];
-            }
-            unicodeKeyInHex = "0x" + keyIdentifier.substring(2);
-            character = String.fromCharCode(parseInt(unicodeKeyInHex));
-            character = event.shiftKey ? character : character.toLowerCase();
-            if (event.ctrlKey) {
-                character = 'c-' + character;
-            }
-            if (event.altKey) {
-                character = 'a-' + character;
-            }
-            if (event.metaKey) {
-                character = 'm-' + character;
+                if (event.altKey) {
+                    character = "Alt-" + character;
+                }
+                if (event.ctrlKey) {
+                    character = "Ctrl-" + character;
+                }
+                if (character.length > 1) {
+                    character = "<{0}>".format(character);
+                }
             }
             return character;
         },

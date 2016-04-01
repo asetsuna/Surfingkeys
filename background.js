@@ -20,6 +20,7 @@ var Service = (function() {
         smoothScroll: true,
         blacklist: {},
         marks: {},
+        historyQuota: {},
         findHistory: [],
         cmdHistory: [],
         version: chrome.runtime.getManifest().version,
@@ -30,7 +31,7 @@ var Service = (function() {
         autoproxy_hosts: {},
         proxyMode: 'clear',
         proxy: "DIRECT",
-        interceptedErrors: '',
+        interceptedErrors: {},
         storage: 'local'
     };
     var newTabUrl = "chrome://newtab/";
@@ -116,27 +117,25 @@ var Service = (function() {
                     }
                 });
             }
-            if (settings.interceptedErrors.length) {
-                chrome.webRequest.onErrorOccurred.addListener(function(details) {
-                    var tabId = details.tabId;
-                    if (tabId !== -1 && (settings.interceptedErrors === "*" || details.error in settings.interceptedErrors)) {
-                        if (!tabErrors.hasOwnProperty(tabId)) {
-                            tabErrors[tabId] = [];
-                        }
-                        if (details.type === "main_frame") {
-                            tabErrors[tabId] = [];
-                            if (details.error !== "net::ERR_ABORTED") {
-                                chrome.tabs.update(tabId, {
-                                    url: chrome.extension.getURL("pages/error.html")
-                                });
-                            }
-                        }
-                        tabErrors[tabId].push(details);
+            chrome.webRequest.onErrorOccurred.addListener(function(details) {
+                var tabId = details.tabId;
+                if (tabId !== -1 && (settings.interceptedErrors.hasOwnProperty("*") || details.error in settings.interceptedErrors)) {
+                    if (!tabErrors.hasOwnProperty(tabId)) {
+                        tabErrors[tabId] = [];
                     }
-                }, {
-                    urls: ["<all_urls>"]
-                });
-            }
+                    if (details.type === "main_frame") {
+                        tabErrors[tabId] = [];
+                        if (details.error !== "net::ERR_ABORTED") {
+                            chrome.tabs.update(tabId, {
+                                url: chrome.extension.getURL("pages/error.html")
+                            });
+                        }
+                    }
+                    tabErrors[tabId].push(details);
+                }
+            }, {
+                urls: ["<all_urls>"]
+            });
         }
     });
 
@@ -271,10 +270,14 @@ var Service = (function() {
         }
     }
 
-    function _updateSettings(diffSettings, noack) {
+    function _updateSettings(diffSettings, noack, afterSet) {
         var toSet = diffSettings;
         extendSettings(diffSettings);
-        chrome.storage.local.set(toSet);
+        chrome.storage.local.set(toSet, function() {
+            if (afterSet) {
+                afterSet();
+            }
+        });
         if (settings.storage === 'sync') {
             chrome.storage.sync.set(toSet, function() {
                 if (chrome.runtime.lastError) {
@@ -295,17 +298,17 @@ var Service = (function() {
     function _loadSettingsFromUrl(url) {
         var s = request('get', url);
         s.then(function(resp) {
-            _updateSettings({localPath: url, snippets: resp});
+            _updateSettings({localPath: url, snippets: resp}, false);
         });
     };
 
     self.resetSettings = function(message, sender, sendResponse) {
         if (message.useDefault) {
-            _updateSettings({localPath: "", snippets: ""});
+            _updateSettings({localPath: "", snippets: ""}, false);
         } else if (settings.localPath) {
             _loadSettingsFromUrl(settings.localPath);
         } else {
-            _updateSettings({snippets: ""});
+            _updateSettings({snippets: ""}, false);
         }
     };
     self.loadSettingsFromUrl = function(message, sender, sendResponse) {
@@ -609,7 +612,7 @@ var Service = (function() {
             });
         });
     };
-    self.quit = function(message, sender, sendResponse) {
+    function _quit() {
         chrome.windows.getAll({
             populate: false
         }, function(windows) {
@@ -617,6 +620,9 @@ var Service = (function() {
                 chrome.windows.remove(w.id);
             });
         });
+    }
+    self.quit = function(message, sender, sendResponse) {
+        _quit();
     };
     self.createSession = function(message, sender, sendResponse) {
         settings.sessions[message.name] = {
@@ -643,7 +649,7 @@ var Service = (function() {
             settings.sessions[message.name]['tabs'] = tabg;
             _updateSettings({
                 sessions: settings.sessions
-            });
+            }, false, (message.quitAfterSaved ? _quit : undefined));
         });
     };
     self.getSessions = function(message, sender, sendResponse) {
@@ -687,7 +693,7 @@ var Service = (function() {
         delete settings.sessions[message.name];
         _updateSettings({
             sessions: settings.sessions
-        });
+        }, false);
     };
 
     self.closeDownloadsShelf = function(message, sender, sendResponse) {
@@ -731,8 +737,7 @@ var Service = (function() {
             autoproxy_hosts: settings.autoproxy_hosts,
             proxyMode: settings.proxyMode,
             proxy: settings.proxy
-        });
-
+        }, false);
         if (message.mode === 'clear') {
             chrome.proxy.settings.clear({scope: 'regular'});
         } else {

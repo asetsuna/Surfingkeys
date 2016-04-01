@@ -49,16 +49,23 @@ var runtime = window.runtime || (function() {
     };
     self.updateHistory = function(type, cmd) {
         var prop = type + 'History';
-        var list = self.settings[prop];
-        if (cmd.length) {
+        var list = self.settings[prop] || [];
+        var historyQuota = self.settings.historyQuota[type] || 50;
+        var toUpdate = {};
+        if (cmd.constructor.name === "Array") {
+            toUpdate[prop] = cmd;
+            self.command({
+                action: 'updateSettings',
+                settings: toUpdate
+            });
+        } else if (cmd.length) {
             list = list.filter(function(c) {
                 return c.length && c !== cmd;
             });
             list.unshift(cmd);
-            if (list.length > 50) {
+            if (list.length > historyQuota) {
                 list.pop();
             }
-            var toUpdate = {};
             toUpdate[prop] = list;
             self.command({
                 action: 'updateSettings',
